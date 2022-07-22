@@ -1,6 +1,5 @@
 import org.jetbrains.compose.compose
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("multiplatform")
@@ -14,6 +13,7 @@ repositories {
     google()
     mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+    maven ("https://jitpack.io" )
 }
 
 kotlin {
@@ -30,6 +30,8 @@ kotlin {
                 implementation("org.smartboot.socket:aio-pro:1.6.0")
                 implementation("com.alibaba:fastjson:2.0.9")
                 implementation("com.google.guava:guava:31.1-jre")
+                implementation("log4j:log4j:1.2.17")
+                implementation("cn.hutool:hutool-all:5.8.4")
             }
         }
         val jvmTest by getting

@@ -2,6 +2,8 @@ package socket
 
 import com.alibaba.fastjson2.JSON
 import com.alibaba.fastjson2.JSONObject
+import logInstance
+import model.DioRequest
 import org.smartboot.socket.Protocol
 import org.smartboot.socket.StateMachineEnum
 import org.smartboot.socket.extension.plugins.HeartPlugin
@@ -20,16 +22,69 @@ fun AioSession.sendData(dataString: String) {
 }
 
 class SocketServerProcessorImpl : AbstractMessageProcessor<String?>() {
+
+    private val log = logInstance<SocketServerProcessorImpl>()
     override fun process0(session: AioSession?, msg: String?) {
-        println("msg: $msg")
+
         session?.let {
             msg?.let {
+                val jsonObject = JSON.parseObject(msg)
+                val type = jsonObject.getString("type")
+                val jsonString = jsonObject.getString("jsonString")
+                when(type){
 
+                    //api请求
+                    "request" -> {
+                        val req = JSON.parseObject(jsonString,DioRequest::class.java)
+                        EventCenter.instance.post(req)
+                    }
+                    else -> {
+                        log.warn("未处理的消息:${jsonString}")
+                    }
+                }
             }
         }
     }
 
+
     override fun stateEvent0(session: AioSession?, stateMachineEnum: StateMachineEnum?, throwable: Throwable?) {
+        when (stateMachineEnum) {
+            StateMachineEnum.NEW_SESSION -> {
+                log.info("新的连接:${session?.localAddress}  id:${session?.sessionID}")
+            }
+            StateMachineEnum.INPUT_SHUTDOWN -> {
+                log.warn("通道已被关闭")
+            }
+            StateMachineEnum.PROCESS_EXCEPTION -> {
+                log.error("处理异常:", throwable)
+            }
+            StateMachineEnum.DECODE_EXCEPTION -> {
+                log.error("解析数据异常:", throwable)
+            }
+            StateMachineEnum.INPUT_EXCEPTION -> {
+                log.error("读取异常", throwable)
+            }
+            StateMachineEnum.OUTPUT_EXCEPTION -> {
+                log.error("写数据异常", throwable)
+            }
+            StateMachineEnum.SESSION_CLOSING -> {
+                log.warn("${session?.sessionID}正在关闭中...")
+            }
+            StateMachineEnum.SESSION_CLOSED -> {
+                log.warn("连接关闭")
+            }
+            StateMachineEnum.REJECT_ACCEPT -> {
+                log.warn("拒绝接收该连接")
+            }
+            StateMachineEnum.ACCEPT_EXCEPTION -> {
+                log.error("服务端接受连接异常", throwable)
+            }
+
+            null -> {
+                log.error("NULL >>>")
+            }
+            else -> {}
+        }
     }
 }
 
@@ -55,7 +110,7 @@ class StringProtocol : Protocol<String?> {
 
 
 ///心跳处理,每10秒发送一次心跳
-class MyHertHandle : HeartPlugin<String>(1,10, TimeUnit.SECONDS) {
+class MyHertHandle : HeartPlugin<String>(1, 10, TimeUnit.SECONDS) {
     override fun sendHeartRequest(session: AioSession?) {
         session?.let {
             session.sendData("heart_req")
